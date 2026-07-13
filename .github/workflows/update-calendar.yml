@@ -1,0 +1,42 @@
+name: Update calendar
+
+on:
+  schedule:
+    # JST 7:00 = UTC 22:00（前日）
+    - cron: "0 22 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-calendar
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Export TimeTree public calendar
+        run: python update_calendar.py
+
+      - name: Commit & push if changed
+        run: |
+          if git diff --quiet -- soccer.ics; then
+            echo "変更なし。コミットしません。"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898270+github-actions[bot]@users.noreply.github.com"
+            git add soccer.ics
+            git commit -m "Update soccer.ics ($(TZ=Asia/Tokyo date +%Y-%m-%d))"
+            git push
+          fi
